@@ -2,9 +2,47 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 const SignupScreen = () => {
     const navigation = useNavigation();
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [emailError, setEmailError] = React.useState('');
+    const [passwordError, setPasswordError] = React.useState('');
+
+    const handleSubmit = async() => {
+        setEmailError('');
+        setPasswordError('');
+        if(!email){
+            setEmailError('Please fill in your email.');
+            return;
+        }
+        if(!password){
+            setPasswordError('Please fill in your password.');
+            return;
+        }
+        try{
+            await createUserWithEmailAndPassword(auth, email, password);
+        }catch(err){
+            switch(err.code){
+                case 'auth/invalid-email':
+                case 'auth/email-already-in-use':
+                    setEmailError(
+                        err.code === 'auth/invalid-email'
+                            ? 'Please enter a valid email address.'
+                            : 'An account with this email already exists.'
+                    );
+                    break;
+                case 'auth/weak-password':
+                    setPasswordError('Password must be at least 6 characters.');
+                    break;
+                default:
+                    setEmailError(err.message);
+            }
+        }
+    };
     return (
         <SafeAreaView style={styles.pageBackground}>
             <View style={styles.topSection}>
@@ -13,16 +51,23 @@ const SignupScreen = () => {
             <View style={styles.card}>
                 <Text style={styles.emailText}>Name</Text>
                 <TextInput placeholder="Enter name" placeholderTextColor="#a0a0a0" style={styles.input} />
+
                 <Text style={styles.emailText}>Email</Text>
-                <TextInput placeholder="Enter email" placeholderTextColor="#a0a0a0" style={styles.input} />
+                <TextInput value={email} onChangeText={value => setEmail(value)} placeholder="Enter email" placeholderTextColor="#a0a0a0" style={[styles.input, emailError ? styles.inputError : null]} />
+                {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+
                 <Text style={styles.emailText}>Password</Text>
-                <TextInput placeholder="Enter password" placeholderTextColor="#a0a0a0" style={styles.input} secureTextEntry />
+                <TextInput value={password} onChangeText={value => setPassword(value)} placeholder="Enter password" placeholderTextColor="#a0a0a0" style={[styles.input, passwordError ? styles.inputError : null]} secureTextEntry />
+                {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+
                 <TouchableOpacity style={styles.forgotPasswordButton}>
                     <Text>Forgot Password?</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Home')}>
+
+                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
                     <Text style={styles.buttonText}>Sign in</Text>
                 </TouchableOpacity>
+
                 <View style={styles.SignIn}>
                     <Text style={styles.SignInPrompt}>Already have an account? </Text>
                     <TouchableOpacity onPress={() => navigation.replace('Login')}>
@@ -70,10 +115,19 @@ const styles = StyleSheet.create({
         borderColor: '#e5e6e8',
         borderRadius: 12,
         padding: 15,
-        marginBottom: 16,
+        marginBottom: 4,
         backgroundColor: '#e5e6e8',
         fontFamily: 'Poppins',
         color: '#1f2328',
+    },
+    inputError: {
+        borderColor: '#e53935',
+    },
+    errorText: {
+        color: '#e53935',
+        fontSize: 12,
+        marginBottom: 10,
+        marginLeft: 4,
     },
     forgotPasswordButton: {
         alignSelf: 'flex-end',
